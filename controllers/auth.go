@@ -8,14 +8,51 @@ import (
 
 	"github.com/EducLex/BE-EducLex/config"
 	"github.com/EducLex/BE-EducLex/middleware"
+	"github.com/EducLex/BE-EducLex/models"
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
 )
 
 // START login Google
-func GoogleLogin(c *gin.Context) {
-	url := config.GoogleOauthConfig.AuthCodeURL("random-state")
-	c.Redirect(http.StatusTemporaryRedirect, url)
+type LoginRequest struct {
+	Email    string `json:"email" binding:"required"`
+	Password string `json:"password" binding:"required"`
+}
+
+// contoh login handler
+func Login(c *gin.Context) {
+	var req LoginRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 🔹 Cek user di database
+	// misalnya hardcode dulu
+	email := req.Email
+	password := req.Password
+
+	// contoh validasi sederhana
+	if email != "admin@example.com" || password != "123456" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
+		return
+	}
+
+	// 🔹 Misalnya role ditentukan berdasarkan user
+	role := "admin"
+
+	// 🔹 Generate JWT
+	jwtToken, err := middleware.GenerateJWT(email, role)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate token"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"token": jwtToken,
+		"email": email,
+		"role":  role,
+	})
 }
 
 // Callback dari Google
@@ -26,12 +63,14 @@ func GoogleCallback(c *gin.Context) {
 		return
 	}
 
+	// Tukar code dengan access token
 	tok, err := config.GoogleOauthConfig.Exchange(context.Background(), code)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Token exchange failed"})
 		return
 	}
 
+	// Ambil data user dari Google
 	resp, err := http.Get("https://www.googleapis.com/oauth2/v2/userinfo?access_token=" + tok.AccessToken)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get user info"})
@@ -45,24 +84,32 @@ func GoogleCallback(c *gin.Context) {
 
 	email, _ := g["email"].(string)
 	name, _ := g["name"].(string)
+
 	if email == "" {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No email from Google"})
 		return
 	}
 
-	// Simpan user (insert tanpa cek duplikat)
-	_, _ = config.UserCollection.InsertOne(context.Background(), bson.M{
-		"email": email,
-		"name":  name,
-	})
+	// ✅ Cek apakah email sudah ada di DB
+	var existing models.User
+	err = config.UserCollection.FindOne(context.Background(), bson.M{"email": email}).Decode(&existing)
+	if err != nil {
+		// Kalau user belum terdaftar → tolak
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error":   "User not registered",
+			"message": "Silakan daftar dulu sebelum login dengan Google",
+		})
+		return
+	}
 
-	// Buat JWT
-	jwtToken, err := middleware.GenerateJWT(email, name)
+	// Kalau ada → generate JWT
+	jwtToken, err := middleware.GenerateJWT(email, "user")
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate JWT"})
 		return
 	}
 
+	// Login sukses
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Login successful",
 		"email":   email,

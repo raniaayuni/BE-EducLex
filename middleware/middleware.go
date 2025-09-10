@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"strings"
 
+	"os"
+
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 )
@@ -19,8 +21,10 @@ func AuthMiddleware() gin.HandlerFunc {
 
 		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 		claims := jwt.MapClaims{}
+		secret := []byte(os.Getenv("JWT_SECRET"))
+
 		_, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
-			return jwtKey, nil
+			return secret, nil
 		})
 
 		if err != nil {
@@ -31,7 +35,7 @@ func AuthMiddleware() gin.HandlerFunc {
 
 		// simpan user ke context
 		c.Set("email", claims["email"])
-		c.Set("name", claims["name"])
+		c.Set("role", claims["role"])
 
 		c.Next()
 	}

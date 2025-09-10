@@ -1,8 +1,8 @@
 package models
 
 type User struct {
-	ID       string `json:"id,omitempty" bson:"_id,omitempty"`
-	Name     string `json:"name" bson:"name"`
-	Email    string `json:"email" bson:"email"`
-	Password string `json:"password,omitempty" bson:"password,omitempty"`
+	Email    string `bson:"email" json:"email"`
+	Name     string `bson:"name" json:"name"`
+	Password string `bson:"password" json:"password"`
+	Role     string `bson:"role" json:"role"`
 }

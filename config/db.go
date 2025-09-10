@@ -1,4 +1,4 @@
-package main
+package config
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-var userCollection *mongo.Collection // <- global, bisa diakses auth.go
+var UserCollection *mongo.Collection
 
 func ConnectDB() {
 	client, err := mongo.NewClient(options.Client().ApplyURI("mongodb://localhost:27017"))
@@ -25,6 +25,6 @@ func ConnectDB() {
 		log.Fatal(err)
 	}
 
-	userCollection = client.Database("educlex").Collection("users")
+	UserCollection = client.Database("educlex").Collection("users")
 	fmt.Println("✅ Connected to MongoDB")
 }

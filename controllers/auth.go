@@ -1,4 +1,4 @@
-package main
+package controllers
 
 import (
 	"context"
@@ -6,13 +6,15 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/EducLex/BE-EducLex/config"
+	"github.com/EducLex/BE-EducLex/middleware"
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
 )
 
 // START login Google
 func GoogleLogin(c *gin.Context) {
-	url := googleOauthConfig.AuthCodeURL("random-state")
+	url := config.GoogleOauthConfig.AuthCodeURL("random-state")
 	c.Redirect(http.StatusTemporaryRedirect, url)
 }
 
@@ -24,7 +26,7 @@ func GoogleCallback(c *gin.Context) {
 		return
 	}
 
-	tok, err := googleOauthConfig.Exchange(context.Background(), code)
+	tok, err := config.GoogleOauthConfig.Exchange(context.Background(), code)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Token exchange failed"})
 		return
@@ -49,13 +51,13 @@ func GoogleCallback(c *gin.Context) {
 	}
 
 	// Simpan user (insert tanpa cek duplikat)
-	_, _ = userCollection.InsertOne(context.Background(), bson.M{
+	_, _ = config.UserCollection.InsertOne(context.Background(), bson.M{
 		"email": email,
 		"name":  name,
 	})
 
 	// Buat JWT
-	jwtToken, err := GenerateJWT(email, name)
+	jwtToken, err := middleware.GenerateJWT(email, name)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate JWT"})
 		return

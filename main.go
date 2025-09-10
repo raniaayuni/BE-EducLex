@@ -1,30 +1,33 @@
 package main
 
 import (
-	"net/http"
+	"fmt"
+	"log"
 
+	"github.com/EducLex/BE-EducLex/config"
+	"github.com/EducLex/BE-EducLex/routes"
 	"github.com/gin-gonic/gin"
 )
 
 func main() {
-	// Koneksi MongoDB
-	ConnectDB()
+	// 1. Koneksi ke MongoDB
+	fmt.Println("🔄 Connecting to MongoDB...")
+	config.ConnectDB()
+	fmt.Println("✅ MongoDB connected")
 
-	// Init router
+	// 2. Setup router
 	r := gin.Default()
+	routes.SetupRoutes(r)
 
-	// Routes Google OAuth
-	r.GET("/auth/google/login", GoogleLogin)       // redirect ke Google
-	r.GET("/auth/google/callback", GoogleCallback) // callback dari Google
-
-	// Contoh route proteksi JWT
-	r.GET("/profile", AuthMiddleware(), ProfileHandler)
-
-	// Root test
-	r.GET("/", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"message": "Welcome to Educlex API 🚀"})
+	// 3. Tambahin endpoint cek server
+	r.GET("/ping", func(c *gin.Context) {
+		c.JSON(200, gin.H{"message": "pong"})
 	})
 
-	// Jalankan server
-	r.Run(":8080")
+	// 4. Run server
+	port := ":8080"
+	fmt.Println("🚀 Server running at http://localhost" + port)
+	if err := r.Run(port); err != nil {
+		log.Fatal("❌ Failed to start server:", err)
+	}
 }

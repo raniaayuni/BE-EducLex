@@ -12,7 +12,6 @@ import (
 	"github.com/EducLex/BE-EducLex/middleware"
 	"github.com/EducLex/BE-EducLex/models"
 	"github.com/gin-gonic/gin"
-
 	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -61,7 +60,6 @@ func GoogleCallback(c *gin.Context) {
 	var user models.User
 	err = config.UserCollection.FindOne(ctx, bson.M{"google_id": gUser.ID}).Decode(&user)
 	if err != nil {
-		// buat user baru
 		user = models.User{
 			ID:       primitive.NewObjectID(),
 			Username: gUser.Name + "-" + uuid.NewString()[:6],

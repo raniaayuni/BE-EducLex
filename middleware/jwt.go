@@ -10,7 +10,6 @@ import (
 
 var jwtKey = []byte(os.Getenv("JWT_SECRET"))
 
-// GenerateJWT untuk membuat token
 func GenerateJWT(userID string, username string) (string, error) {
 	claims := jwt.MapClaims{
 		"user_id":  userID,
@@ -21,7 +20,6 @@ func GenerateJWT(userID string, username string) (string, error) {
 	return token.SignedString(jwtKey)
 }
 
-// AuthMiddleware hanya ada satu!
 func AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		tokenString := c.GetHeader("Authorization")

@@ -14,7 +14,6 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// Register manual
 func Register(c *gin.Context) {
 	var input struct {
 		Username        string `json:"username" binding:"required"`
@@ -22,7 +21,6 @@ func Register(c *gin.Context) {
 		Password        string `json:"password" binding:"required,min=6"`
 		ConfirmPassword string `json:"confirm_password" binding:"required,eqfield=Password"`
 	}
-
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -31,7 +29,6 @@ func Register(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	// cek email/username sudah ada
 	count, _ := config.UserCollection.CountDocuments(ctx, bson.M{
 		"$or": []bson.M{
 			{"email": input.Email},
@@ -44,14 +41,12 @@ func Register(c *gin.Context) {
 	}
 
 	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
-
 	user := models.User{
 		ID:       primitive.NewObjectID(),
 		Username: input.Username,
 		Email:    input.Email,
 		Password: string(hashedPassword),
 	}
-
 	_, err := config.UserCollection.InsertOne(ctx, user)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user"})
@@ -62,13 +57,11 @@ func Register(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "register success", "token": token})
 }
 
-// Login manual
 func Login(c *gin.Context) {
 	var input struct {
 		Username string `json:"username" binding:"required"`
 		Password string `json:"password" binding:"required"`
 	}
-
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return

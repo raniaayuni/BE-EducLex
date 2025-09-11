@@ -14,6 +14,7 @@ func SetupRouter() *gin.Engine {
 		auth.POST("/login", controllers.Login)
 		auth.GET("/google/login", controllers.GoogleLoginRedirect)
 		auth.GET("/google/callback", controllers.GoogleCallback)
+
 	}
 
 	// Tambahkan route google-success

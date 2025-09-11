@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
 	"time"
@@ -19,20 +18,17 @@ import (
 )
 
 type GoogleUser struct {
-	ID            string `json:"id"`
-	Email         string `json:"email"`
-	VerifiedEmail bool   `json:"verified_email"`
-	Name          string `json:"name"`
+	ID    string `json:"id"`
+	Email string `json:"email"`
+	Name  string `json:"name"`
 }
 
 func GoogleLoginRedirect(c *gin.Context) {
-	log.Println("GoogleLoginRedirect called")
 	url := config.GoogleOauthConfig.AuthCodeURL(uuid.NewString())
 	c.Redirect(http.StatusTemporaryRedirect, url)
 }
 
 func GoogleCallback(c *gin.Context) {
-	log.Println("GoogleCallback called")
 	code := c.Query("code")
 	if code == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Code not found"})
@@ -62,10 +58,10 @@ func GoogleCallback(c *gin.Context) {
 
 	var user models.User
 	err = config.UserCollection.FindOne(ctx, bson.M{"google_id": gUser.ID}).Decode(&user)
-	if err != nil {
+	if err != nil { // user belum ada → buat baru
 		user = models.User{
 			ID:       primitive.NewObjectID(),
-			Username: gUser.Name + "-" + uuid.NewString()[:6],
+			Username: gUser.Name,
 			Email:    gUser.Email,
 			GoogleID: gUser.ID,
 		}

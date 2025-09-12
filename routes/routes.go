@@ -8,14 +8,17 @@ import (
 func SetupRouter() *gin.Engine {
 	r := gin.Default()
 
-	// Manual Auth
-	r.POST("/register", controllers.Register)
-	r.POST("/login", controllers.Login)
+	auth := r.Group("/auth")
+	{
+		// manual
+		auth.POST("/register", controllers.Register)
+		auth.POST("/login", controllers.Login)
 
-	// Google Auth
-	r.GET("/auth/google/login", controllers.GoogleLogin)       // redirect ke Google
-	r.GET("/auth/google/callback", controllers.GoogleCallback) // login pakai Google
-	r.GET("/auth/google/register", controllers.GoogleRegister) // register pakai Google
+		// google
+		auth.GET("/google/login", controllers.GoogleLogin)
+		auth.GET("/google/register", controllers.GoogleRegister)
+		auth.GET("/google/callback", controllers.GoogleCallback)
+	}
 
 	return r
 }

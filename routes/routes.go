@@ -8,22 +8,14 @@ import (
 func SetupRouter() *gin.Engine {
 	r := gin.Default()
 
-	auth := r.Group("/auth")
-	{
-		auth.POST("/register", controllers.Register)
-		auth.POST("/login", controllers.Login)
-		auth.GET("/google/login", controllers.GoogleLogin)
-		auth.GET("/google/callback", controllers.GoogleCallback)
-		auth.GET("/auth/google/register", controllers.GoogleRegister)
+	// Manual Auth
+	r.POST("/register", controllers.Register)
+	r.POST("/login", controllers.Login)
 
-	}
-
-	// Tambahkan route google-success
-	r.GET("/google-success", func(c *gin.Context) {
-		token := c.Query("token")
-		c.Header("Content-Type", "text/html")
-		c.String(200, "<h1>Login Success!</h1><p>Token: "+token+"</p>")
-	})
+	// Google Auth
+	r.GET("/auth/google/login", controllers.GoogleLogin)       // redirect ke Google
+	r.GET("/auth/google/callback", controllers.GoogleCallback) // login pakai Google
+	r.GET("/auth/google/register", controllers.RegisterGoogle) // register pakai Google
 
 	return r
 }

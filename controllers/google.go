@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"os"
 	"time"
@@ -36,13 +37,14 @@ func GoogleCallback(c *gin.Context) {
 	}
 
 	// Tukar code dari Google dengan access token
-	token, err := config.GoogleOauthConfig.Exchange(c, code)
+	token, err := config.GoogleOauthConfig.Exchange(context.Background(), code)
 	if err != nil {
+		log.Println("Error exchanging token:", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to exchange token"})
 		return
 	}
 
-	client := config.GoogleOauthConfig.Client(c, token)
+	client := config.GoogleOauthConfig.Client(context.Background(), token)
 	resp, err := client.Get("https://www.googleapis.com/oauth2/v2/userinfo")
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get user info"})
@@ -78,7 +80,7 @@ func GoogleCallback(c *gin.Context) {
 	// Buat JWT internal untuk aplikasi
 	jwtToken, _ := middleware.GenerateJWT(user.ID.Hex(), user.Username)
 
-	// Simpan token ke DB (field token di user)
+	// Simpan token ke DB
 	_, err = config.UserCollection.UpdateOne(
 		ctx,
 		bson.M{"_id": user.ID},
@@ -91,5 +93,9 @@ func GoogleCallback(c *gin.Context) {
 
 	// Redirect ke frontend dengan membawa token
 	redirectURL := os.Getenv("FRONTEND_URL") + "/google-success?token=" + jwtToken
+	if redirectURL == "/google-success?token="+jwtToken { // kalau FRONTEND_URL kosong
+		c.JSON(http.StatusOK, gin.H{"token": jwtToken})
+		return
+	}
 	c.Redirect(http.StatusTemporaryRedirect, redirectURL)
 }

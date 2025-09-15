@@ -10,15 +10,14 @@ import (
 func SetupRouter() *gin.Engine {
 	r := gin.Default()
 
-	// Aktifkan CORS
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:8080"}, // alamat FE
-		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE"},
-		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
-		ExposeHeaders:    []string{"Content-Length"},
-		AllowCredentials: true,
-		MaxAge: 12 * time.Hour,
-	}))
+    AllowOrigins:     []string{"http://127.0.0.1:5500"}, // alamat FE yg benar
+    AllowMethods:     []string{"GET", "POST", "PUT", "DELETE"},
+    AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+    ExposeHeaders:    []string{"Content-Length"},
+    AllowCredentials: true,
+    MaxAge: 12 * time.Hour,
+}))
 
 	// auth group
 	auth := r.Group("/auth")

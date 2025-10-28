@@ -40,14 +40,17 @@ type Tulisan struct {
 	Kategori string             `bson:"kategori" json:"kategori"`
 	Judul    string             `bson:"judul" json:"judul"`
 	Isi      string             `bson:"isi" json:"isi"`
-	Created  time.Time          `json:"created" bson:"created"`
+	CreatedAt time.Time `json:"createdAt" bson:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt" bson:"updatedAt"`
 }
 
 type Peraturan struct {
-    ID        string    `json:"id" bson:"_id,omitempty"`
-    Judul     string    `json:"judul" bson:"judul"`
-    Pasal     string    `json:"pasal" bson:"pasal"`
-    CreatedAt time.Time `json:"createdAt" bson:"createdAt"`
+    ID        string    `bson:"_id,omitempty" json:"id,omitempty"`
+    Judul     string    `bson:"judul" json:"judul"`
+    Isi       string    `bson:"isi" json:"isi"`
+    Kategori  string    `bson:"kategori" json:"kategori"`
+    CreatedAt time.Time `bson:"createdAt" json:"createdAt"`
+    UpdatedAt time.Time `bson:"updatedAt,omitempty" json:"updatedAt,omitempty"`
 }
 
 type TokenBlacklist struct {

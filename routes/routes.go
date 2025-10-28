@@ -41,12 +41,11 @@ func SetupRouter() *gin.Engine {
 
 	auth.GET("/profile", middleware.AuthMiddleware(), controllers.ProfileHandler)
 
-		// Dashboard Admin
+	// Dashboard Admin
 	r.GET("/dashboard", middleware.AuthMiddleware(), middleware.AdminMiddleware(), controllers.GetDashboardStats)
 
 	// Data Pengguna
 	r.GET("/users", middleware.AuthMiddleware(), middleware.AdminMiddleware(), controllers.GetAllUsers)
-
 
 	// question routes (dipisah dari auth biar rapi)
 	r.POST("/questions", controllers.CreateQuestion)
@@ -60,18 +59,29 @@ func SetupRouter() *gin.Engine {
 	r.DELETE("/articles/:id", controllers.DeleteArticle)
 
 	// Tulisan Jaksa
-	r.POST("/tulisan", controllers.CreateTulisan)
-	r.GET("/tulisan", controllers.GetTulisans)
+	tulisan := r.Group("/tulisan")
+	{
+		tulisan.GET("/", controllers.GetAllTulisan)                                                             // bisa diakses semua user
+		tulisan.POST("/", middleware.AuthMiddleware(), middleware.AdminMiddleware(), controllers.CreateTulisan) // cuma admin
+		tulisan.PUT("/:id", middleware.AuthMiddleware(), middleware.AdminMiddleware(), controllers.UpdateTulisan)
+		tulisan.DELETE("/:id", middleware.AuthMiddleware(), middleware.AdminMiddleware(), controllers.DeleteTulisan)
+	}
 
-	//Peraturan
-	r.POST("/peraturan", controllers.CreatePeraturan)
-	r.GET("/peraturan", controllers.GetPeraturan)
-	r.DELETE("/peraturan/:id", controllers.DeletePeraturan)
+	// Peraturan (CRUD)
+	peraturan := r.Group("/peraturan")
+	{
+		// Semua user bisa lihat daftar & detail
+		peraturan.GET("/", controllers.GetPeraturan)
+		peraturan.GET("/:id", controllers.GetPeraturanByID)
+
+		// Hanya admin yang bisa create, update, delete
+		peraturan.POST("/", middleware.AuthMiddleware(), middleware.AdminMiddleware(), controllers.CreatePeraturan)
+		peraturan.PUT("/:id", middleware.AuthMiddleware(), middleware.AdminMiddleware(), controllers.UpdatePeraturan)
+		peraturan.DELETE("/:id", middleware.AuthMiddleware(), middleware.AdminMiddleware(), controllers.DeletePeraturan)
+	}
 
 	//logout
 	r.POST("/auth/logout", controllers.Logout)
-
-	
 
 	return r
 }

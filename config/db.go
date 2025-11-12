@@ -2,8 +2,10 @@ package config
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"log"
+	"time"
 
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -19,15 +21,22 @@ var (
 )
 
 func ConnectDB() {
-	uri := "mongodb+srv://educlexUser:Dewi201202@educlex.fupsgp1.mongodb.net/?retryWrites=true&w=majority&appName=EducLex"
+	uri := "mongodb+srv://educlexUser:Dewi201202@educlex.fupsgp1.mongodb.net/?retryWrites=true&w=majority"
 
-	clientOptions := options.Client().ApplyURI(uri)
-	client, err := mongo.Connect(context.Background(), clientOptions)
+	tlsConfig := &tls.Config{}
+	clientOptions := options.Client().
+		ApplyURI(uri).
+		SetTLSConfig(tlsConfig)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	client, err := mongo.Connect(ctx, clientOptions)
 	if err != nil {
 		log.Fatal("❌ Gagal konek ke MongoDB:", err)
 	}
 
-	err = client.Ping(context.Background(), nil)
+	err = client.Ping(ctx, nil)
 	if err != nil {
 		log.Fatal("❌ MongoDB tidak bisa diakses:", err)
 	}

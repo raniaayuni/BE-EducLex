@@ -12,3 +12,4 @@ var GoogleOauthConfig = &oauth2.Config{
 	Scopes:       []string{"https://www.googleapis.com/auth/userinfo.email", "https://www.googleapis.com/auth/userinfo.profile"},
 	Endpoint:     google.Endpoint,
 }
+

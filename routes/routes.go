@@ -64,6 +64,15 @@ func SetupRouter() *gin.Engine {
 
 	// ✅ Endpoint jaksa
 	r.POST("/jaksa", controllers.CreateJaksa)
+	r.GET("/jaksa", controllers.GetAllJaksa)
+	r.PUT("/jaksa/:id", controllers.UpdateJaksa)
+	r.DELETE("/jaksa/:id", controllers.DeleteJaksa)
+
+	// PROFILE JAKSA
+	r.GET("/jaksa/profile/:id", controllers.GetJaksaProfile)
+	r.PUT("/jaksa/profile/:id", controllers.UpdateJaksaProfile)
+	r.POST("/jaksa/auth/forgot-password", controllers.ForgotPassword)
+	r.POST("/jaksa/auth/reset-password-jaksa", controllers.ResetPasswordJaksa)
 
 	// Tulisan Jaksa
 	tulisan := r.Group("/tulisan")

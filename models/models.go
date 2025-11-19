@@ -7,13 +7,15 @@ import (
 )
 
 type User struct {
-	ID       primitive.ObjectID `bson:"_id,omitempty" json:"id"`
-	Username string             `bson:"username" json:"username"`
-	Email    string             `bson:"email" json:"email"`
-	Password string             `bson:"password,omitempty" json:"-"`
-	GoogleID string             `bson:"google_id,omitempty" json:"google_id"`
-	Role     string             `bson:"role,omitempty" json:"role"`
-	Token    string             `bson:"token,omitempty" json:"token"`
+	ID             primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	Username       string             `bson:"username" json:"username"`
+	Email          string             `bson:"email" json:"email"`
+	Password       string             `bson:"password,omitempty" json:"-"`
+	GoogleID       string             `bson:"google_id,omitempty" json:"google_id"`
+	Role           string             `bson:"role,omitempty" json:"role"`
+	Token          string             `bson:"token,omitempty" json:"token"`
+	ResetOtp       string             `bson:"reset_otp,omitempty" json:"reset_otp,omitempty"`
+	ResetOtpExpiry int64              `bson:"reset_otp_expiry,omitempty" json:"reset_otp_expiry,omitempty"`
 }
 
 type Diskusi struct {
@@ -70,10 +72,13 @@ type TokenBlacklist struct {
 }
 
 type Jaksa struct {
-	ID       primitive.ObjectID `bson:"_id,omitempty" json:"id"`
-	Nama     string             `bson:"nama" json:"nama"`
-	NIP      string             `bson:"nip" json:"nip"`
-	Jabatan  string             `bson:"jabatan" json:"jabatan"`
-	Email    string             `bson:"email" json:"email"`
-	Foto     string             `bson:"foto,omitempty" json:"foto,omitempty"` // optional
+	ID             primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	Nama           string             `bson:"nama" json:"nama"`
+	NIP            string             `bson:"nip" json:"nip"`
+	Jabatan        string             `bson:"jabatan" json:"jabatan"`
+	Email          string             `bson:"email" json:"email"`
+	Foto           string             `bson:"foto,omitempty" json:"foto,omitempty"`
+	Password       string             `json:"password,omitempty" bson:"password,omitempty"`
+	ResetOtp       string             `bson:"reset_otp,omitempty" json:"reset_otp,omitempty"`
+	ResetOtpExpiry int64              `bson:"reset_otp_expiry,omitempty" json:"reset_otp_expiry,omitempty"`
 }

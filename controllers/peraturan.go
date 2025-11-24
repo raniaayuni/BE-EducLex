@@ -39,24 +39,37 @@ func CreatePeraturan(c *gin.Context) {
 
 // ✅ Ambil semua peraturan (User & Admin)
 func GetPeraturan(c *gin.Context) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+    // 🔥 PAKSA CORS HEADER DI SINI
+    c.Header("Access-Control-Allow-Origin", "http://127.0.0.1:5500")
+    c.Header("Access-Control-Allow-Credentials", "true")
+    c.Header("Access-Control-Allow-Headers", "Content-Type, Authorization, Origin, Accept")
+    c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 
-	cursor, err := config.PeraturanCollection.Find(ctx, bson.M{})
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil data"})
-		return
-	}
-	defer cursor.Close(ctx)
+    // (untuk jaga-jaga kalau ada OPTIONS)
+    if c.Request.Method == http.MethodOptions {
+        c.AbortWithStatus(204)
+        return
+    }
 
-	var results []models.Peraturan
-	if err := cursor.All(ctx, &results); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal decode data"})
-		return
-	}
+    ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+    defer cancel()
 
-	c.JSON(http.StatusOK, results)
+    cursor, err := config.PeraturanCollection.Find(ctx, bson.M{})
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil data"})
+        return
+    }
+    defer cursor.Close(ctx)
+
+    var results []models.Peraturan
+    if err := cursor.All(ctx, &results); err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal decode data"})
+        return
+    }
+
+    c.JSON(http.StatusOK, results)
 }
+
 
 // ✅ Ambil peraturan berdasarkan ID (User & Admin)
 func GetPeraturanByID(c *gin.Context) {

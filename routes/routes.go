@@ -1,8 +1,6 @@
 package routes
 
 import (
-	"time"
-
 	"github.com/EducLex/BE-EducLex/controllers"
 	"github.com/EducLex/BE-EducLex/middleware"
 	"github.com/gin-contrib/cors"
@@ -12,14 +10,7 @@ import (
 func SetupRouter() *gin.Engine {
 	r := gin.Default()
 
-	// CORS BENAR
-	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://127.0.0.1:5500"},
-		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
-		AllowCredentials: true,
-		MaxAge:           12 * time.Hour,
-	}))
+	r.Use(cors.Default())
 
 	// auth group
 	auth := r.Group("/auth")
@@ -85,12 +76,12 @@ func SetupRouter() *gin.Engine {
 	// Peraturan (CRUD)
 	peraturan := r.Group("/peraturan")
 	{
-		peraturan.GET("/", controllers.GetPeraturan)
-		peraturan.GET("/:id", controllers.GetPeraturanByID)
+		peraturan.GET("", controllers.GetPeraturan)
+		peraturan.GET(":id", controllers.GetPeraturanByID)
 
-		peraturan.POST("/", middleware.AuthMiddleware(), middleware.AdminMiddleware(), controllers.CreatePeraturan)
-		peraturan.PUT("/:id", middleware.AuthMiddleware(), middleware.AdminMiddleware(), controllers.UpdatePeraturan)
-		peraturan.DELETE("/:id", middleware.AuthMiddleware(), middleware.AdminMiddleware(), controllers.DeletePeraturan)
+		peraturan.POST("", middleware.AuthMiddleware(), middleware.AdminMiddleware(), controllers.CreatePeraturan)
+		peraturan.PUT(":id", middleware.AuthMiddleware(), middleware.AdminMiddleware(), controllers.UpdatePeraturan)
+		peraturan.DELETE(":id", middleware.AuthMiddleware(), middleware.AdminMiddleware(), controllers.DeletePeraturan)
 	}
 
 	//logout

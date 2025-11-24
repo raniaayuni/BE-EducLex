@@ -18,6 +18,13 @@ type User struct {
 	ResetOtpExpiry int64              `bson:"reset_otp_expiry,omitempty" json:"reset_otp_expiry,omitempty"`
 }
 
+type DashboardData struct {
+	TotalArtikel   int `json:"totalArtikel"`
+	TotalTanya     int `json:"totalTanya"`
+	TotalTulisan   int `json:"totalTulisan"`
+	TotalPeraturan int `json:"totalPeraturan"`
+}
+
 type Diskusi struct {
 	Pengirim string    `json:"pengirim" bson:"pengirim"`
 	Pesan    string    `json:"pesan" bson:"pesan"`

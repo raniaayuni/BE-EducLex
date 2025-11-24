@@ -38,7 +38,6 @@ func SetupRouter() *gin.Engine {
 
 	// hanya admin
 	auth.PUT("/update-role", middleware.AuthMiddleware(), middleware.AdminMiddleware(), controllers.UpdateRole)
-
 	auth.GET("/profile", middleware.AuthMiddleware(), controllers.ProfileHandler)
 
 	// Dashboard Admin

@@ -52,6 +52,7 @@ type Article struct {
 	Gambar    string             `bson:"gambar,omitempty" json:"gambar,omitempty"`
 	Dokumen   string             `bson:"dokumen,omitempty" json:"dokumen,omitempty"`
 	CreatedAt time.Time          `bson:"created_at" json:"created_at"`
+	CategoryID primitive.ObjectID `bson:"categoryId"`
 }
 
 type Tulisan struct {
@@ -88,4 +89,9 @@ type Jaksa struct {
 	Password       string             `json:"password,omitempty" bson:"password,omitempty"`
 	ResetOtp       string             `bson:"reset_otp,omitempty" json:"reset_otp,omitempty"`
 	ResetOtpExpiry int64              `bson:"reset_otp_expiry,omitempty" json:"reset_otp_expiry,omitempty"`
+}
+
+type Category struct {
+	ID   primitive.ObjectID `bson:"_id,omitempty"`
+	Name string             `bson:"name"`
 }

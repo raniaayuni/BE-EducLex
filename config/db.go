@@ -19,15 +19,14 @@ var (
 	PeraturanCollection      *mongo.Collection
 	TokenBlacklistCollection *mongo.Collection
 	JaksaCollection          *mongo.Collection
+	CategoryCollection       *mongo.Collection
 )
 
 func ConnectDB() {
 	uri := "mongodb+srv://educlexUser:Dewi201202@educlex.fupsgp1.mongodb.net/?retryWrites=true&w=majority"
 
 	tlsConfig := &tls.Config{}
-	clientOptions := options.Client().
-		ApplyURI(uri).
-		SetTLSConfig(tlsConfig)
+	clientOptions := options.Client().ApplyURI(uri).SetTLSConfig(tlsConfig)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -44,11 +43,18 @@ func ConnectDB() {
 
 	fmt.Println("✅ Connected to MongoDB Atlas!")
 
+	// Pastikan koleksi sudah terinisialisasi
 	UserCollection = client.Database("EducLex").Collection("users")
 	QuestionCollection = client.Database("EducLex").Collection("questions")
-	ArticleCollection = client.Database("articles").Collection("articles")
+	ArticleCollection = client.Database("EducLex").Collection("articles")
 	TulisanCollection = client.Database("EducLex").Collection("tulisan")
 	PeraturanCollection = client.Database("EducLex").Collection("peraturan")
 	TokenBlacklistCollection = client.Database("EducLex").Collection("token_blacklist")
 	JaksaCollection = client.Database("EducLex").Collection("jaksa")
+	CategoryCollection = client.Database("EducLex").Collection("categories")
+
+	// Verifikasi koleksi terhubung
+	if UserCollection == nil || CategoryCollection == nil {
+		log.Fatal("❌ Koleksi MongoDB tidak dapat diakses")
+	}
 }

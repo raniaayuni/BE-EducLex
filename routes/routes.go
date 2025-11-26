@@ -10,7 +10,13 @@ import (
 func SetupRouter() *gin.Engine {
 	r := gin.Default()
 
-	r.Use(cors.Default())
+	// Konfigurasi CORS
+	r.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"http://127.0.0.1:5500"}, // Mengizinkan akses dari http://127.0.0.1:5500
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+		AllowCredentials: true,
+	}))
 
 	// auth group
 	auth := r.Group("/auth")
@@ -63,6 +69,13 @@ func SetupRouter() *gin.Engine {
 	r.PUT("/jaksa/profile/:id", controllers.UpdateJaksaProfile)
 	r.POST("/jaksa/auth/forgot-password", controllers.ForgotPassword)
 	r.POST("/jaksa/auth/reset-password-jaksa", controllers.ResetPassword)
+
+	// Kategori routes
+	r.POST("/categories", controllers.CreateCategory)
+	r.GET("/categories", controllers.GetCategories)
+	r.GET("/categories/:id", controllers.GetCategoryByID)
+	r.PUT("/categories/:id", controllers.UpdateCategory)
+	r.DELETE("/categories/:id", controllers.DeleteCategory)
 
 	// Tulisan Jaksa
 	tulisan := r.Group("/tulisan")

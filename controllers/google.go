@@ -6,13 +6,15 @@ import (
 	"net/http"
 	"time"
 
+	"fmt"
+	"net/url"
+
 	"github.com/EducLex/BE-EducLex/config"
 	"github.com/EducLex/BE-EducLex/middleware"
 	"github.com/EducLex/BE-EducLex/models"
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
 	"golang.org/x/oauth2"
 )
 
@@ -33,71 +35,73 @@ func GoogleLogin(c *gin.Context) {
 }
 
 // --- STEP: Callback (auto register or login) ---
+
 func GoogleCallback(c *gin.Context) {
+	// ambil "code" dari URL yang dikirim Google
 	code := c.Query("code")
 	if code == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Code not found"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "code tidak ada"})
 		return
 	}
 
-	// Tukar code ke token
+	// tukar code -> token Google
 	token, err := config.GoogleOauthConfig.Exchange(context.Background(), code)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to exchange token"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "gagal tukar code ke token"})
 		return
 	}
 
-	// Ambil data user dari Google
+	// pakai token untuk ambil data user Google
 	client := config.GoogleOauthConfig.Client(context.Background(), token)
 	resp, err := client.Get("https://www.googleapis.com/oauth2/v2/userinfo")
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get user info"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "gagal ambil data user google"})
 		return
 	}
 	defer resp.Body.Close()
 
-	var gUser GoogleUser
+	var gUser struct {
+		Email string `json:"email"`
+		Name  string `json:"name"`
+		Id    string `json:"id"`
+	}
 	if err := json.NewDecoder(resp.Body).Decode(&gUser); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse user info"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "gagal decode user google"})
 		return
 	}
 
+	// cek di DB: kalau belum ada, buat user baru
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	var user models.User
-	err = config.UserCollection.FindOne(ctx, bson.M{"google_id": gUser.ID}).Decode(&user)
-
-	if err == mongo.ErrNoDocuments {
-		// --- kalau belum ada → register baru
+	err = config.UserCollection.FindOne(ctx, bson.M{"email": gUser.Email}).Decode(&user)
+	if err != nil {
+		// kalau tidak ketemu → insert user baru
 		user = models.User{
 			ID:       primitive.NewObjectID(),
 			Username: gUser.Name,
 			Email:    gUser.Email,
-			GoogleID: gUser.ID,
-			Role:     "user", // default role
+			Role:     "user",
 		}
-		_, err := config.UserCollection.InsertOne(ctx, user)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user"})
+		if _, err := config.UserCollection.InsertOne(ctx, user); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "gagal simpan user google"})
 			return
 		}
-	} else if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
-		return
 	}
-
 	// --- Buat JWT
 	jwtToken, _ := middleware.GenerateJWT(user.ID.Hex(), user.Username, user.Role)
 
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Google login success",
-		"token":   jwtToken,
-		"user": gin.H{
-			"user_id":  user.ID.Hex(),
-			"username": user.Username,
-			"email":    user.Email,
-			"role":     user.Role,
-		},
-	})
+	// Redirect ke frontend (index.html) dengan query params
+	redirectURL := fmt.Sprintf(
+		"http://127.0.0.1:5500/index.html?token=%s&user_id=%s&username=%s&email=%s&role=%s",
+		url.QueryEscape(jwtToken),
+		url.QueryEscape(user.ID.Hex()),
+		url.QueryEscape(user.Username),
+		url.QueryEscape(user.Email),
+		url.QueryEscape(user.Role),
+	)
+
+	c.Redirect(http.StatusTemporaryRedirect, redirectURL)
+
 }

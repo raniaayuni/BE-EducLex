@@ -87,19 +87,23 @@ type TokenBlacklist struct {
 }
 
 type Jaksa struct {
-	ID             primitive.ObjectID `bson:"_id,omitempty" json:"id"`
-	Nama           string             `bson:"nama" json:"nama"`
-	Username       string             `bson:"username" json:"username"`
+	ID                      primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	Nama                    string             `bson:"nama" json:"nama"`
+	Username                string             `bson:"username" json:"username"`
 	Email                   string             `bson:"email" json:"email"`
-	NIP            string             `bson:"nip" json:"nip"`
-	Jabatan        string             `bson:"jabatan" json:"jabatan"`
-	UserID         primitive.ObjectID `bson:"user_id" json:"user_id"`
-	Foto           string             `bson:"foto,omitempty" json:"foto,omitempty"`
-	Password       string             `json:"password,omitempty" bson:"password,omitempty"`
-	ResetOtp       string             `bson:"reset_otp,omitempty" json:"reset_otp,omitempty"`
-	ResetOtpExpiry int64              `bson:"reset_otp_expiry,omitempty" json:"reset_otp_expiry,omitempty"`
-	BidangID       primitive.ObjectID `json:"bidang_id" bson:"bidang_id"`
-	BidangNama     string             `json:"bidang_nama" bson:"bidang_nama"`
+	NIP                     string             `bson:"nip" json:"nip"`
+	Jabatan                 string             `bson:"jabatan" json:"jabatan"`
+	UserID                  primitive.ObjectID `bson:"user_id" json:"user_id"`
+	Foto                    string             `bson:"foto,omitempty" json:"foto,omitempty"`
+	Password                string             `json:"password,omitempty" bson:"password,omitempty"`
+	ConfirmPassword         string             `bson:"-" json:"confirm_password,omitempty"`
+	ResetOtp                string             `bson:"reset_otp,omitempty" json:"reset_otp,omitempty"`
+	ResetOtpExpiry          int64              `bson:"reset_otp_expiry,omitempty" json:"reset_otp_expiry,omitempty"`
+	BidangID                primitive.ObjectID `json:"bidang_id" bson:"bidang_id"`
+	BidangNama              string             `json:"bidang_nama" bson:"bidang_nama"`
+	EmailVerificationOTP    string             `bson:"email_verification_otp,omitempty" json:"email_verification_otp,omitempty"`
+	EmailVerificationExpiry int64              `bson:"email_verification_expiry,omitempty" json:"email_verification_expiry,omitempty"`
+	EmailVerified           bool               `bson:"email_verified" json:"email_verified"`
 }
 
 type Category struct {

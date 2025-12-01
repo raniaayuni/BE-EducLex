@@ -45,7 +45,7 @@ func SetupRouter() *gin.Engine {
 
 	r.POST("/auth/verify-email", controllers.VerifyEmail)
 
-	r.POST("/auth/register-jaksa", controllers.CreateJaksa) 
+	r.POST("/auth/register-jaksa", middleware.AuthMiddleware(), middleware.AdminMiddleware(), controllers.CreateJaksa)
 
 	// Pertanyaan dan Pengaduan
 	r.GET("/questions", controllers.GetQuestions)

@@ -2,13 +2,13 @@ package controllers
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"log"
 	"math/rand"
-	"net/smtp"
 	"net"
+	"net/smtp"
 	"time"
-	"crypto/tls"
 
 	"github.com/EducLex/BE-EducLex/config"
 	"github.com/EducLex/BE-EducLex/models"
@@ -136,25 +136,25 @@ func VerifyEmail(c *gin.Context) {
 		return
 	}
 
-	// Cari pengguna berdasarkan email dan OTP
-	var user models.User
-	err := config.UserCollection.FindOne(context.Background(), bson.M{
-		"email": body.Email,
+	// Cari Jaksa berdasarkan email dan OTP
+	var jaksa models.Jaksa
+	err := config.JaksaCollection.FindOne(context.Background(), bson.M{
+		"email":                  body.Email,
 		"email_verification_otp": body.OTP,
-	}).Decode(&user)
+	}).Decode(&jaksa)
 	if err != nil {
 		c.JSON(404, gin.H{"error": "OTP tidak valid atau email tidak terdaftar"})
 		return
 	}
 
 	// Cek apakah OTP sudah kedaluwarsa
-	if time.Now().Unix() > user.EmailVerificationExpiry {
+	if time.Now().Unix() > jaksa.EmailVerificationExpiry {
 		c.JSON(400, gin.H{"error": "OTP sudah kedaluwarsa"})
 		return
 	}
 
 	// Update status email terverifikasi
-	_, err = config.UserCollection.UpdateOne(
+	_, err = config.JaksaCollection.UpdateOne(
 		context.Background(),
 		bson.M{"email": body.Email},
 		bson.M{
@@ -162,7 +162,7 @@ func VerifyEmail(c *gin.Context) {
 				"email_verified": true,
 			},
 			"$unset": bson.M{
-				"email_verification_otp":        "",
+				"email_verification_otp":    "",
 				"email_verification_expiry": "",
 			},
 		},
@@ -178,7 +178,7 @@ func VerifyEmail(c *gin.Context) {
 // Fungsi untuk mengirim email dengan SMTP Gmail
 func sendEmail(to, subject, message string) error {
 	from := "dewidesember20@gmail.com" // Ganti dengan email Gmail kamu
-	pass := "pezf jucw gssc mmar"     // Ganti dengan App Password yang kamu buat
+	pass := "pezf jucw gssc mmar"      // Ganti dengan App Password yang kamu buat
 
 	// Mengatur SMTP server Gmail
 	smtpHost := "smtp.gmail.com"

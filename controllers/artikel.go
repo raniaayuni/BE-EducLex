@@ -21,11 +21,18 @@ func CreateArticle(c *gin.Context) {
 	os.MkdirAll("uploads", os.ModePerm)
 
 	var input models.Article
-	input.Judul = c.PostForm("judul")
-	input.Isi = c.PostForm("isi")
-	input.Penulis = "Admin"
-	input.CreatedAt = time.Now()
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
 
+	// Validasi categoryId
+	if input.CategoryID.IsZero() {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Category ID harus diisi"})
+		return
+	}
+
+	// Menangani file gambar
 	file, _ := c.FormFile("gambar")
 	if file != nil {
 		path := "uploads/" + file.Filename
@@ -34,6 +41,7 @@ func CreateArticle(c *gin.Context) {
 		}
 	}
 
+	// Menangani file dokumen
 	dokumen, _ := c.FormFile("dokumen")
 	if dokumen != nil {
 		path := "uploads/" + dokumen.Filename
@@ -42,6 +50,7 @@ func CreateArticle(c *gin.Context) {
 		}
 	}
 
+	// Insert artikel ke MongoDB
 	collection := config.ArticleCollection
 	res, err := collection.InsertOne(context.Background(), input)
 	if err != nil {
@@ -58,25 +67,36 @@ func CreateArticle(c *gin.Context) {
 	})
 }
 
-// ✅ Ambil semua artikel (User & Admin)
+// ✅ Ambil semua artikel (User & Admin) berdasarkan CategoryID
 func GetArticles(c *gin.Context) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+	categoryID := c.DefaultQuery("categoryId", "")
 
-	// ✅ gunakan config.ArticleCollection, bukan articleCollection
-	cursor, err := config.ArticleCollection.Find(ctx, bson.M{})
+	// Jika categoryId ada, gunakan filter
+	var filter bson.M
+	if categoryID != "" {
+		// Validasi categoryId
+		_, err := primitive.ObjectIDFromHex(categoryID)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Category ID tidak valid"})
+			return
+		}
+
+		filter = bson.M{"categoryId": categoryID}
+	} else {
+		filter = bson.M{} // Ambil semua artikel jika tidak ada categoryId
+	}
+
+	cursor, err := config.ArticleCollection.Find(context.Background(), filter)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil data"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	defer cursor.Close(ctx)
+	defer cursor.Close(context.Background())
 
 	var articles []models.Article
-	for cursor.Next(ctx) {
-		var artikel models.Article
-		if err := cursor.Decode(&artikel); err == nil {
-			articles = append(articles, artikel)
-		}
+	if err := cursor.All(context.Background(), &articles); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
 	}
 
 	c.JSON(http.StatusOK, articles)

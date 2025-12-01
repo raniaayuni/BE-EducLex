@@ -16,6 +16,9 @@ type User struct {
 	Token          string             `bson:"token,omitempty" json:"token"`
 	ResetOtp       string             `bson:"reset_otp,omitempty" json:"reset_otp,omitempty"`
 	ResetOtpExpiry int64              `bson:"reset_otp_expiry,omitempty" json:"reset_otp_expiry,omitempty"`
+	EmailVerified         bool               `bson:"email_verified" json:"email_verified"` 
+	EmailVerificationOTP  string             `bson:"email_verification_otp,omitempty" json:"email_verification_otp,omitempty"` 
+	EmailVerificationExpiry int64           `bson:"email_verification_expiry,omitempty" json:"email_verification_expiry,omitempty"`
 }
 
 type DashboardData struct {
@@ -54,15 +57,17 @@ type Article struct {
 	Gambar    string             `bson:"gambar,omitempty" json:"gambar,omitempty"`
 	Dokumen   string             `bson:"dokumen,omitempty" json:"dokumen,omitempty"`
 	CreatedAt time.Time          `bson:"created_at" json:"created_at"`
-	CategoryID primitive.ObjectID `bson:"categoryId"`
+	CategoryID primitive.ObjectID `bson:"categoryId" json:"categoryId"`  // ID kategori
 }
 
 type Tulisan struct {
 	ID        primitive.ObjectID `bson:"_id,omitempty" json:"id"`
 	Penulis   string             `bson:"penulis" json:"penulis"`
-	Kategori  string             `bson:"kategori" json:"kategori"`
 	Judul     string             `bson:"judul" json:"judul"`
 	Isi       string             `bson:"isi" json:"isi"`
+	File      string             `bson:"file,omitempty" json:"file,omitempty"`
+	BidangID  primitive.ObjectID `bson:"bidang_id" json:"bidang_id"`       
+	BidangNama string            `bson:"bidang_nama" json:"bidang_nama"` 
 	CreatedAt time.Time          `json:"createdAt" bson:"createdAt"`
 	UpdatedAt time.Time          `json:"updatedAt" bson:"updatedAt"`
 }
@@ -86,11 +91,12 @@ type Jaksa struct {
 	Nama           string             `bson:"nama" json:"nama"`
 	NIP            string             `bson:"nip" json:"nip"`
 	Jabatan        string             `bson:"jabatan" json:"jabatan"`
-	Email          string             `bson:"email" json:"email"`
+	UserID         primitive.ObjectID `bson:"user_id" json:"user_id"`
 	Foto           string             `bson:"foto,omitempty" json:"foto,omitempty"`
-	Password       string             `json:"password,omitempty" bson:"password,omitempty"`
 	ResetOtp       string             `bson:"reset_otp,omitempty" json:"reset_otp,omitempty"`
 	ResetOtpExpiry int64              `bson:"reset_otp_expiry,omitempty" json:"reset_otp_expiry,omitempty"`
+	BidangID   primitive.ObjectID `json:"bidang_id" bson:"bidang_id"`   
+	BidangNama string             `json:"bidang_nama" bson:"bidang_nama"`
 }
 
 type Category struct {

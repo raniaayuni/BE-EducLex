@@ -52,9 +52,8 @@ func SetupRouter() *gin.Engine {
 	r.GET("/:id/diskusi", controllers.GetDiskusiByQuestionID)
 
 	// Artikel Routes
-	r.GET("/articles", controllers.GetArticles)
-	r.GET("/articles/:id", controllers.GetArticleByID)
-	r.POST("/articles", middleware.AuthMiddleware(), middleware.AdminMiddleware(), controllers.CreateArticle)
+	r.GET("/articles", controllers.GetArticles)                                                               // Bisa diakses semua user
+	r.POST("/articles", middleware.AuthMiddleware(), middleware.AdminMiddleware(), controllers.CreateArticle) // Hanya admin
 	r.PUT("/articles/:id", middleware.AuthMiddleware(), middleware.AdminMiddleware(), controllers.UpdateArticle)
 	r.DELETE("/articles/:id", middleware.AuthMiddleware(), middleware.AdminMiddleware(), controllers.DeleteArticle)
 
@@ -87,11 +86,13 @@ func SetupRouter() *gin.Engine {
 	// Tulisan Jaksa
 	tulisan := r.Group("/tulisan")
 	{
-		tulisan.GET("/", controllers.GetAllTulisan)                                                             // bisa diakses semua user
-		tulisan.POST("/", middleware.AuthMiddleware(), middleware.AdminMiddleware(), controllers.CreateTulisan) // cuma admin
+		tulisan.GET("/", controllers.GetAllTulisan)                                                             // Bisa diakses semua user
+		tulisan.POST("/", middleware.AuthMiddleware(), middleware.AdminMiddleware(), controllers.CreateTulisan) // Hanya admin
 		tulisan.PUT("/:id", middleware.AuthMiddleware(), middleware.AdminMiddleware(), controllers.UpdateTulisan)
 		tulisan.DELETE("/:id", middleware.AuthMiddleware(), middleware.AdminMiddleware(), controllers.DeleteTulisan)
 	}
+
+	r.GET("/tulisan/download/:id", controllers.DownloadFile)
 
 	// Peraturan (CRUD)
 	peraturan := r.Group("/peraturan")

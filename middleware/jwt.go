@@ -12,7 +12,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 )
 
-var jwtKey = []byte("superSecretKey123") // ganti nanti dengan SECRET_KEY dari .env
+var jwtKey = []byte("superSecretKey123") 
 
 // GenerateJWT buat token JWT (dengan role)
 func GenerateJWT(userID string, username string, role string) (string, error) {

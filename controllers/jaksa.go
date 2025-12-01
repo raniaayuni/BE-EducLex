@@ -12,34 +12,48 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-// Tambah Jaksa
+// =========================
+// Create Jaksa
+// =========================
 func CreateJaksa(c *gin.Context) {
-	jaksaCollection := config.JaksaCollection
-	if jaksaCollection == nil {
-		c.JSON(500, gin.H{"error": "JaksaCollection masih nil"})
+	var body models.Jaksa
+
+	// Ambil JSON dari body
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
 
-	var input models.Jaksa
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Data tidak valid: " + err.Error()})
+	// Ambil userId dari middleware autentikasi
+	userId, _ := c.Get("userId")
+	if userId == nil {
+		c.JSON(400, gin.H{"error": "User tidak terautentikasi"})
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+	// Set userId ke dalam objek Jaksa
+	body.UserID = userId.(primitive.ObjectID)
 
-	result, err := jaksaCollection.InsertOne(ctx, input)
+	// Validasi BidangID dan BidangNama
+	if body.BidangID.IsZero() || body.BidangNama == "" {
+		c.JSON(400, gin.H{"error": "Bidang ID dan Nama harus diisi"})
+		return
+	}
+
+	// Insert Jaksa baru ke MongoDB
+	result, err := config.JaksaCollection.InsertOne(context.Background(), body)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menyimpan data jaksa: " + err.Error()})
+		c.JSON(500, gin.H{"error": "Gagal menambahkan Jaksa"})
 		return
 	}
 
-	input.ID = result.InsertedID.(primitive.ObjectID)
+	// Mengambil ID yang baru dimasukkan
+	insertedID := result.InsertedID.(primitive.ObjectID)
+	body.ID = insertedID
 
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Data Jaksa berhasil ditambahkan",
-		"data":    input,
+	c.JSON(200, gin.H{
+		"message": "Jaksa berhasil ditambahkan",
+		"data":    body,
 	})
 }
 
@@ -91,13 +105,23 @@ func UpdateJaksa(c *gin.Context) {
 		return
 	}
 
+	// Ambil userId dari middleware autentikasi
+	userId, _ := c.Get("userId")
+	if userId == nil {
+		c.JSON(400, gin.H{"error": "User tidak terautentikasi"})
+		return
+	}
+
+	// Set userId ke dalam objek Jaksa
+	body.UserID = userId.(primitive.ObjectID)
+
 	update := bson.M{
 		"$set": bson.M{
 			"nama":    body.Nama,
 			"nip":     body.NIP,
 			"jabatan": body.Jabatan,
-			"email":   body.Email,
 			"foto":    body.Foto,
+			"user_id": body.UserID, // Update userId juga
 		},
 	}
 

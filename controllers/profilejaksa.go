@@ -20,22 +20,38 @@ import (
 // Get Jaksa Profile
 // =========================
 func GetJaksaProfile(c *gin.Context) {
+	// Ambil ID dari parameter URL
 	id := c.Param("id")
 
+	// Konversi ID menjadi ObjectID
 	objID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
+		// Jika ID tidak valid, kembalikan error
 		c.JSON(400, gin.H{"error": "ID tidak valid"})
 		return
 	}
 
+	// Buat variabel untuk menyimpan data Jaksa
 	var data models.Jaksa
-	err = config.JaksaCollection.FindOne(context.Background(), bson.M{"_id": objID}).Decode(&data)
+
+	// Gunakan context dengan timeout untuk efisiensi query
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Cari data Jaksa berdasarkan ID
+	err = config.JaksaCollection.FindOne(ctx, bson.M{"_id": objID}).Decode(&data)
 	if err != nil {
-		c.JSON(404, gin.H{"error": "Data tidak ditemukan"})
+		// Jika data tidak ditemukan
+		if err.Error() == "mongo: no documents in result" {
+			c.JSON(404, gin.H{"error": "Data tidak ditemukan"})
+			return
+		}
+		// Jika ada error lain
+		c.JSON(500, gin.H{"error": "Gagal mengambil data Jaksa"})
 		return
 	}
 
-	data.Password = ""
+	// Kembalikan response dengan data Jaksa
 	c.JSON(200, gin.H{"data": data})
 }
 
@@ -45,39 +61,56 @@ func GetJaksaProfile(c *gin.Context) {
 func UpdateJaksaProfile(c *gin.Context) {
 	id := c.Param("id")
 
+	// Convert id to ObjectID
 	objID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
 		c.JSON(400, gin.H{"error": "ID tidak valid"})
 		return
 	}
 
+	// Struct untuk input data baru
 	var body struct {
-		Nama  string `json:"nama"`
-		NIP   string `json:"nip"`
-		Email string `json:"email"`
-		Foto  string `json:"foto"`
+		Nama       string `json:"nama"`
+		NIP        string `json:"nip"`
+		Email      string `json:"email"`
+		Foto       string `json:"foto"`
+		BidangID   string `json:"bidang_id"`  
+		BidangNama string `json:"bidang_nama"` 
 	}
 
-	if c.ShouldBindJSON(&body) != nil {
-		c.JSON(400, gin.H{"error": "Data tidak valid"})
+	// Bind input dari JSON body
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(400, gin.H{"error": "Data tidak valid", "detail": err.Error()})
 		return
 	}
 
+	// Memastikan BidangID dan BidangNama ada
+	if body.BidangID == "" || body.BidangNama == "" {
+		c.JSON(400, gin.H{"error": "Bidang ID dan Nama harus diisi"})
+		return
+	}
+
+	// Siapkan data update
 	update := bson.M{
 		"$set": bson.M{
-			"nama":  body.Nama,
-			"nip":   body.NIP,
-			"email": body.Email,
-			"foto":  body.Foto,
+			"nama":       body.Nama,
+			"nip":        body.NIP,
+			"email":      body.Email,
+			"foto":       body.Foto,
+			"bidang_id":  body.BidangID,   // Update BidangID
+			"bidang_nama": body.BidangNama, // Update BidangNama
 		},
 	}
 
+	// Cek dan update database
 	_, err = config.JaksaCollection.UpdateOne(context.Background(), bson.M{"_id": objID}, update)
 	if err != nil {
-		c.JSON(500, gin.H{"error": "Update gagal"})
+		log.Printf("Error updating Jaksa: %v", err)
+		c.JSON(500, gin.H{"error": "Update gagal", "detail": err.Error()})
 		return
 	}
 
+	// Jika berhasil update
 	c.JSON(200, gin.H{"message": "Profil berhasil diperbarui"})
 }
 
@@ -88,11 +121,62 @@ func generateOTP() string {
 	return otp
 }
 
+func VerifyEmail(c *gin.Context) {
+	var body struct {
+		Email string `json:"email"`
+		OTP   string `json:"otp"`
+	}
+
+	// Bind request body ke struct
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(400, gin.H{"error": "Data tidak valid"})
+		return
+	}
+
+	// Cari pengguna berdasarkan email dan OTP
+	var user models.User
+	err := config.UserCollection.FindOne(context.Background(), bson.M{
+		"email":                 body.Email,
+		"email_verification_otp": body.OTP,
+	}).Decode(&user)
+	if err != nil {
+		c.JSON(404, gin.H{"error": "OTP tidak valid atau email tidak terdaftar"})
+		return
+	}
+
+	// Cek apakah OTP sudah kedaluwarsa
+	if time.Now().Unix() > user.EmailVerificationExpiry {
+		c.JSON(400, gin.H{"error": "OTP sudah kedaluwarsa"})
+		return
+	}
+
+	// Update status email terverifikasi
+	_, err = config.UserCollection.UpdateOne(
+		context.Background(),
+		bson.M{"email": body.Email},
+		bson.M{
+			"$set": bson.M{
+				"email_verified": true,
+			},
+			"$unset": bson.M{
+				"email_verification_otp":        "",
+				"email_verification_expiry": "",
+			},
+		},
+	)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "Gagal memperbarui status verifikasi email"})
+		return
+	}
+
+	c.JSON(200, gin.H{"message": "Email berhasil diverifikasi"})
+}
+
+
 // Fungsi untuk mengirim email dengan SMTP Gmail
 func sendEmail(to, subject, message string) error {
-	// Email pengirim dan App Password
 	from := "dewidesember20@gmail.com" // Ganti dengan email Gmail kamu
-	pass := "pezf jucw gssc mmar"      // Ganti dengan App Password yang kamu buat
+	pass := "pezf jucw gssc mmar"     // Ganti dengan App Password yang kamu buat
 
 	// Mengatur SMTP server Gmail
 	smtpHost := "smtp.gmail.com"
@@ -104,6 +188,9 @@ func sendEmail(to, subject, message string) error {
 	// Mengonfigurasi otentikasi SMTP
 	auth := smtp.PlainAuth("", from, pass, smtpHost)
 
+	// Log sebelum pengiriman email
+	log.Printf("Sending email to %s with subject %s", to, subject)
+
 	// Kirim email
 	err := smtp.SendMail(smtpHost+":"+smtpPort, auth, from, []string{to}, []byte(msg))
 	if err != nil {
@@ -111,7 +198,7 @@ func sendEmail(to, subject, message string) error {
 		return err
 	}
 
-	log.Println("Email sent successfully!")
+	log.Println("Email sent successfully!")  // Log setelah pengiriman email berhasil
 	return nil
 }
 
@@ -135,27 +222,15 @@ func ForgotPassword(c *gin.Context) {
 		return
 	}
 
-	// Generate OTP secara dinamis
-	otp := generateOTP()
-
-	// Set OTP expiry to 10 minutes
-	expiry := time.Now().Add(10 * time.Minute).Unix()
-
-	// Simpan OTP dan waktu kedaluwarsa di database JaksaCollection
-	_, err = config.JaksaCollection.UpdateOne(
-		context.Background(),
-		bson.M{"email": body.Email}, // Menyimpan OTP di collection Jaksa berdasarkan email
-		bson.M{
-			"$set": bson.M{
-				"reset_otp":        otp,
-				"reset_otp_expiry": expiry,
-			},
-		},
-	)
-	if err != nil {
-		c.JSON(500, gin.H{"error": "Gagal mengupdate OTP"})
+	// Cek apakah email sudah terverifikasi
+	if user.EmailVerificationExpiry > time.Now().Unix() {
+		// Jika email belum terverifikasi, kembalikan pesan error
+		c.JSON(400, gin.H{"error": "Email belum terverifikasi"})
 		return
 	}
+
+	// Generate OTP untuk reset password
+	otp := generateOTP()
 
 	// Kirim OTP ke email pengguna
 	message := fmt.Sprintf("Kode OTP Anda untuk mereset password: %s", otp)
@@ -165,14 +240,29 @@ func ForgotPassword(c *gin.Context) {
 		return
 	}
 
-	// Response sukses
+	// Set OTP dan waktu kedaluwarsa di database
+	_, err = config.UserCollection.UpdateOne(
+		context.Background(),
+		bson.M{"email": body.Email},
+		bson.M{
+			"$set": bson.M{
+				"reset_otp":        otp,
+				"reset_otp_expiry": time.Now().Add(10 * time.Minute).Unix(),
+			},
+		},
+	)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "Gagal menyimpan OTP reset password"})
+		return
+	}
+
 	c.JSON(200, gin.H{"message": "OTP untuk reset password sudah dikirim ke email"})
 }
 
 // Fungsi untuk mereset password pengguna di Jaksa
 func ResetPassword(c *gin.Context) {
 	var body struct {
-		Email       string `json:"email"` // Email pengguna untuk verifikasi OTP
+		Email       string `json:"email"`
 		OTP         string `json:"otp"`
 		NewPassword string `json:"new_password"`
 	}
@@ -183,23 +273,19 @@ func ResetPassword(c *gin.Context) {
 		return
 	}
 
-	// Cari Jaksa berdasarkan email dan OTP di JaksaCollection
-	var jaksa models.Jaksa
-	err := config.JaksaCollection.FindOne(context.Background(), bson.M{
+	// Cari pengguna berdasarkan email dan OTP
+	var user models.User
+	err := config.UserCollection.FindOne(context.Background(), bson.M{
 		"email":    body.Email,
 		"reset_otp": body.OTP,
-	}).Decode(&jaksa)
+	}).Decode(&user)
 	if err != nil {
 		c.JSON(404, gin.H{"error": "OTP tidak valid"})
 		return
 	}
 
-	// Log OTP yang disimpan di database dan yang dimasukkan pengguna
-	fmt.Println("OTP yang disimpan di database:", jaksa.ResetOtp)
-	fmt.Println("OTP yang dimasukkan pengguna:", body.OTP)
-
 	// Cek apakah OTP sudah kedaluwarsa
-	if time.Now().Unix() > jaksa.ResetOtpExpiry {
+	if time.Now().Unix() > user.ResetOtpExpiry {
 		c.JSON(400, gin.H{"error": "OTP sudah kedaluwarsa"})
 		return
 	}
@@ -212,9 +298,9 @@ func ResetPassword(c *gin.Context) {
 	}
 
 	// Update password dan hapus OTP
-	_, err = config.JaksaCollection.UpdateOne(
+	_, err = config.UserCollection.UpdateOne(
 		context.Background(),
-		bson.M{"_id": jaksa.ID},
+		bson.M{"_id": user.ID},
 		bson.M{
 			"$set": bson.M{"password": string(hashedPassword)},
 			"$unset": bson.M{
@@ -228,6 +314,6 @@ func ResetPassword(c *gin.Context) {
 		return
 	}
 
-	// Respons sukses
 	c.JSON(200, gin.H{"message": "Password berhasil direset"})
 }
+

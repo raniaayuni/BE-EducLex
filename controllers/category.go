@@ -47,6 +47,7 @@ func SeedCategories() {
 // Fungsi untuk menambahkan kategori baru
 func CreateCategory(c *gin.Context) {
 	var input models.Category
+	// Mengambil data JSON
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Gagal menambahkan kategori", "detail": err.Error()})
 		return
@@ -60,16 +61,8 @@ func CreateCategory(c *gin.Context) {
 
 	// Validasi subkategori internal
 	if input.Name == "internal" {
-		internalCategories := []string{"Pembinaan", "Intelijen", "Pidana Umum", "Pidana Khusus", "Perdata dan Tata Usaha Negara", "Pidana Militer", "Asisten Pengawasan"}
-		subCategory := c.DefaultPostForm("subkategori", "")
-		validSubCategory := false
-		for _, category := range internalCategories {
-			if subCategory == category {
-				validSubCategory = true
-				break
-			}
-		}
-		if !validSubCategory {
+		internalCategories := []string{"Pembinaan", "Intelijen", "Pidana Umum", "Pidana Khusus", "Perdata dan Tata Usaha Negara", "Pidana Militer", "Pengawasan"}
+		if !contains(internalCategories, input.Subkategori) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Subkategori internal tidak valid"})
 			return
 		}
@@ -77,16 +70,8 @@ func CreateCategory(c *gin.Context) {
 
 	// Validasi subkategori eksternal
 	if input.Name == "eksternal" {
-		eksternalCategories := []string{"Peraturan UUD", "Peraturan Presiden", "Perpres", "Keppres"}
-		subCategory := c.DefaultPostForm("subkategori", "")
-		validSubCategory := false
-		for _, category := range eksternalCategories {
-			if subCategory == category {
-				validSubCategory = true
-				break
-			}
-		}
-		if !validSubCategory {
+		eksternalCategories := []string{"Peraturan UUD", "Peraturan Pemerintah", "Peraturan Presiden", "Keputusan Presiden"}
+		if !contains(eksternalCategories, input.Subkategori) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Subkategori eksternal tidak valid"})
 			return
 		}
@@ -95,7 +80,6 @@ func CreateCategory(c *gin.Context) {
 	// Menyimpan data kategori baru
 	input.CreatedAt = time.Now()
 	input.UpdatedAt = time.Now()
-	input.ID = primitive.NewObjectID()
 
 	_, err := config.CategoryCollection.InsertOne(context.Background(), input)
 	if err != nil {
@@ -107,6 +91,16 @@ func CreateCategory(c *gin.Context) {
 		"message": "Kategori berhasil ditambahkan",
 		"data":    input,
 	})
+}
+
+// Fungsi untuk memeriksa apakah sebuah item ada dalam array
+func contains(arr []string, item string) bool {
+	for _, a := range arr {
+		if a == item {
+			return true
+		}
+	}
+	return false
 }
 
 // Fungsi untuk mengambil kategori berdasarkan ID

@@ -90,14 +90,10 @@ func SetupRouter() *gin.Engine {
 	r.DELETE("/bidang/:id", controllers.DeleteBidang)
 
 	// Tulisan Jaksa
-	tulisan := r.Group("/tulisan")
-	{
-		tulisan.GET("/", controllers.GetAllTulisan)                                                             // Bisa diakses semua user
-		tulisan.POST("/", middleware.AuthMiddleware(), middleware.AdminMiddleware(), controllers.CreateTulisan) // Hanya admin
-		tulisan.PUT("/:id", middleware.AuthMiddleware(), middleware.AdminMiddleware(), controllers.UpdateTulisan)
-		tulisan.DELETE("/:id", middleware.AuthMiddleware(), middleware.AdminMiddleware(), controllers.DeleteTulisan)
-	}
-
+	r.GET("/tulisan", controllers.GetAllTulisan)
+	r.POST("/tulisan", controllers.CreateTulisan)
+	r.PUT("/tulisan/:id", controllers.UpdateTulisan)
+	r.DELETE("/tulisan/:id", controllers.DeleteTulisan)
 	r.GET("/tulisan/download/:id", controllers.DownloadFile)
 
 	// Peraturan

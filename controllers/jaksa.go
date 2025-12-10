@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/smtp"
 	"time"
+	"os"
 
 	"github.com/EducLex/BE-EducLex/config"
 	"github.com/EducLex/BE-EducLex/models"
@@ -27,32 +28,33 @@ func CreateJaksa(c *gin.Context) {
 		return
 	}
 
+	// Prepare data from form inputs
 	var body models.Jaksa
-	// Ambil JSON dari body
-	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
+	body.Username = c.PostForm("username")
+	body.Nama = c.PostForm("nama")
+	body.Email = c.PostForm("email")
+	body.NIP = c.PostForm("nip")
 
-	// Validasi confirm_password
-	if body.Password != body.ConfirmPassword {
+	// Validate confirm_password
+	password := c.PostForm("password")
+	confirmPassword := c.PostForm("confirm_password")
+	if password != confirmPassword {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Password dan Confirm Password tidak cocok"})
 		return
 	}
 
-	// Hash password sebelum disimpan ke database
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(body.Password), bcrypt.DefaultCost)
+	// Hash password before storing in DB
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal meng-hash password"})
 		return
 	}
 	body.Password = string(hashedPassword)
 
-	// Validasi jika email atau username sudah terdaftar
+	// Validate if email or username already exists
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	// Cek apakah email atau username sudah ada
 	count, _ := config.JaksaCollection.CountDocuments(ctx, bson.M{
 		"$or": []bson.M{
 			{"email": body.Email},
@@ -65,22 +67,63 @@ func CreateJaksa(c *gin.Context) {
 		return
 	}
 
-	// Generate OTP untuk verifikasi email
+	// Generate OTP for email verification
 	emailVerificationOTP := generateOTP()
 	emailVerificationExpiry := time.Now().Add(10 * time.Minute).Unix()
 
-	// Insert Jaksa baru ke MongoDB (koleksi Jaksa)
+	// Handle file uploads
+	// Ensure the "uploads" folder exists
+	os.MkdirAll("uploads", os.ModePerm)
+
+	// Handle image file (Foto)
+	file, err := c.FormFile("gambar")
+	if err == nil {
+		path := "uploads/" + file.Filename
+		if err := c.SaveUploadedFile(file, path); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menyimpan gambar"})
+			return
+		}
+		body.Foto = path
+	}
+
+	// Handling BidangID and getting BidangNama
+	bidangID := c.PostForm("bidang_id")
+	if bidangID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Bidang ID tidak boleh kosong"})
+		return
+	}
+
+	// Convert bidang_id into ObjectID
+	objectID, err := primitive.ObjectIDFromHex(bidangID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Bidang ID tidak valid"})
+		return
+	}
+	body.BidangID = objectID
+
+	// Get BidangName based on BidangID
+	var bidang models.Bidang
+	err = config.BidangCollection.FindOne(context.Background(), bson.M{"_id": objectID}).Decode(&bidang)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Bidang tidak ditemukan"})
+		return
+	}
+
+	// Automatically set BidangNama based on BidangID
+	body.BidangNama = bidang.Nama
+
+	// Insert new Jaksa into MongoDB
 	result, err := config.JaksaCollection.InsertOne(context.Background(), body)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menambahkan Jaksa"})
 		return
 	}
 
-	// Mengambil ID yang baru dimasukkan untuk Jaksa
+	// Get inserted ID for Jaksa
 	insertedID := result.InsertedID.(primitive.ObjectID)
 	body.ID = insertedID
 
-	// Update Jaksa dengan OTP verifikasi email
+	// Update Jaksa with email verification OTP
 	_, err = config.JaksaCollection.UpdateOne(
 		context.Background(),
 		bson.M{"_id": body.ID},
@@ -96,20 +139,20 @@ func CreateJaksa(c *gin.Context) {
 		return
 	}
 
-	// Kirim email verifikasi
+	// Send email verification
 	err = sendVerificationEmail(body.Email, emailVerificationOTP)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengirim email verifikasi"})
 		return
 	}
 
-	// Tambahkan Jaksa ke koleksi User (buat entry di User)
+	// Add Jaksa to User collection
 	user := models.User{
 		ID:       body.ID,
 		Username: body.Username,
 		Email:    body.Email,
-		Password: body.Password, 
-		Role:     "jaksa",       
+		Password: body.Password,
+		Role:     "jaksa", 
 		EmailVerificationOTP:    emailVerificationOTP,
 		EmailVerificationExpiry: emailVerificationExpiry,
 	}
@@ -120,6 +163,7 @@ func CreateJaksa(c *gin.Context) {
 		return
 	}
 
+	// Respond with success
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Jaksa berhasil ditambahkan ke koleksi Jaksa dan User, email verifikasi telah dikirim",
 		"data":    body,
@@ -128,8 +172,8 @@ func CreateJaksa(c *gin.Context) {
 
 func sendVerificationEmail(to, otp string) error {
 	// Email pengirim dan App Password
-	from := "dewidesember20@gmail.com" // Ganti dengan email Gmail kamu
-	pass := "pezf jucw gssc mmar"      // Ganti dengan App Password yang kamu buat
+	from := "dewidesember20@gmail.com" 
+	pass := "pezf jucw gssc mmar"      
 
 	// Mengatur SMTP server Gmail
 	smtpHost := "smtp.gmail.com"
@@ -215,9 +259,8 @@ func UpdateJaksa(c *gin.Context) {
 		"$set": bson.M{
 			"nama":    body.Nama,
 			"nip":     body.NIP,
-			"jabatan": body.Jabatan,
 			"foto":    body.Foto,
-			"user_id": body.UserID, // Update userId juga
+			"user_id": body.UserID, 
 		},
 	}
 

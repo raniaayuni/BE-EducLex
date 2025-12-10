@@ -16,6 +16,8 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"golang.org/x/crypto/bcrypt"
+	"go.mongodb.org/mongo-driver/mongo"
+
 )
 
 // =========================
@@ -356,7 +358,7 @@ func ForgotPassword(c *gin.Context) {
 	c.JSON(200, gin.H{"message": "OTP untuk reset password sudah dikirim ke email"})
 }
 
-// Fungsi untuk mereset password pengguna di Jaksa
+// Fungsi untuk mereset password pengguna (baik User maupun Jaksa)
 func ResetPassword(c *gin.Context) {
 	var body struct {
 		Email       string `json:"email"`
@@ -370,43 +372,78 @@ func ResetPassword(c *gin.Context) {
 		return
 	}
 
-	// Cari pengguna berdasarkan email dan OTP
+	// Cek apakah pengguna adalah User atau Jaksa
 	var user models.User
-	err := config.UserCollection.FindOne(context.Background(), bson.M{
+	var jaksa models.Jaksa
+	var err error
+
+	// Cek apakah email ada di UserCollection
+	err = config.UserCollection.FindOne(context.Background(), bson.M{
 		"email":     body.Email,
 		"reset_otp": body.OTP,
 	}).Decode(&user)
+
+	// Jika tidak ditemukan di User, cek di Jaksa
 	if err != nil {
-		c.JSON(404, gin.H{"error": "OTP tidak valid"})
-		return
+		err = config.JaksaCollection.FindOne(context.Background(), bson.M{
+			"email":     body.Email,
+			"reset_otp": body.OTP,
+		}).Decode(&jaksa)
+
+		// Jika juga tidak ditemukan di Jaksa, kirimkan error
+		if err != nil {
+			c.JSON(404, gin.H{"error": "OTP atau email tidak valid"})
+			return
+		}
+	}
+
+	// Tentukan koleksi yang sesuai berdasarkan apakah user atau jaksa
+	var collection interface{}
+	var resetOtpExpiry int64
+	var email string
+	var hashedPassword string
+
+	// Jika ditemukan di User
+	if user.Email != "" {
+		collection = config.UserCollection
+		resetOtpExpiry = user.ResetOtpExpiry
+		email = user.Email
+	} else {
+		collection = config.JaksaCollection
+		resetOtpExpiry = jaksa.ResetOtpExpiry
+		email = jaksa.Email
 	}
 
 	// Cek apakah OTP sudah kedaluwarsa
-	if time.Now().Unix() > user.ResetOtpExpiry {
+	if time.Now().Unix() > resetOtpExpiry {
 		c.JSON(400, gin.H{"error": "OTP sudah kedaluwarsa"})
 		return
 	}
 
 	// Hash password baru
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(body.NewPassword), bcrypt.DefaultCost)
+	hashedPasswordBytes, err := bcrypt.GenerateFromPassword([]byte(body.NewPassword), bcrypt.DefaultCost)
 	if err != nil {
 		c.JSON(500, gin.H{"error": "Gagal meng-hash password"})
 		return
 	}
+	// Konversi []byte menjadi string
+	hashedPassword = string(hashedPasswordBytes)
 
-	// Update password dan hapus OTP
-	_, err = config.UserCollection.UpdateOne(
-		context.Background(),
-		bson.M{"_id": user.ID},
-		bson.M{
-			"$set": bson.M{"password": string(hashedPassword)},
-			"$unset": bson.M{
-				"reset_otp":        "",
-				"reset_otp_expiry": "",
-			},
+	// Update password untuk User atau Jaksa
+	update := bson.M{
+		"$set": bson.M{"password": hashedPassword},
+		"$unset": bson.M{
+			"reset_otp":        "",
+			"reset_otp_expiry": "",
 		},
-	)
-	if err != nil {
+	}
+
+	// Jalankan update sesuai dengan koleksi yang benar
+	if _, err := collection.(*mongo.Collection).UpdateOne(
+		context.Background(),
+		bson.M{"email": email},
+		update,
+	); err != nil {
 		c.JSON(500, gin.H{"error": "Gagal mereset password"})
 		return
 	}

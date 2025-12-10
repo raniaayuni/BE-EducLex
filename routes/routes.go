@@ -73,7 +73,7 @@ func SetupRouter() *gin.Engine {
 	r.GET("/jaksa/profile/:id", controllers.GetJaksaProfile)
 	r.PUT("/jaksa/profile/:id", controllers.UpdateJaksaProfile)
 	r.POST("/jaksa/auth/forgot-password", controllers.ForgotPassword)
-	r.POST("/jaksa/auth/reset-password-jaksa", controllers.ResetPassword)
+	r.POST("/jaksa/auth/reset-password", controllers.ResetPassword)
 
 	// Kategori routes
 	r.POST("/categories", controllers.CreateCategory)

@@ -96,7 +96,6 @@ type Jaksa struct {
 	Username                string             `bson:"username" json:"username"`
 	Email                   string             `bson:"email" json:"email"`
 	NIP                     string             `bson:"nip" json:"nip"`
-	Jabatan                 string             `bson:"jabatan" json:"jabatan"`
 	UserID                  primitive.ObjectID `bson:"user_id" json:"user_id"`
 	Foto                    string             `bson:"foto,omitempty" json:"foto,omitempty"`
 	Password                string             `json:"password,omitempty" bson:"password,omitempty"`

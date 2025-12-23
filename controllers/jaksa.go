@@ -213,13 +213,16 @@ type UpdateJaksaRequest struct {
 	NIP      string `json:"nip"`
 	Email    string `json:"email"`
 	BidangID string `json:"bidang_id"`
+	BidangNama string `json:"bidang_nama"`
 }
 
 // Update Jaksa
 func UpdateJaksa(c *gin.Context) {
-	jaksaCollection := config.JaksaCollection
-	userCollection := config.UserCollection
+	jaksaCol := config.JaksaCollection
+	userCol := config.UserCollection
+	bidangCol := config.BidangCollection
 
+	// ambil id jaksa
 	idParam := c.Param("id")
 	jaksaID, err := primitive.ObjectIDFromHex(idParam)
 	if err != nil {
@@ -227,111 +230,104 @@ func UpdateJaksa(c *gin.Context) {
 		return
 	}
 
-	// Bind request
-	var body UpdateJaksaRequest
+	// bind JSON (tanpa DTO)
+	var body models.Jaksa
 	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+		c.JSON(400, gin.H{"error": "Data tidak valid"})
 		return
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	// Ambil data jaksa lama
+	// ambil data jaksa lama
 	var jaksa models.Jaksa
-	if err := jaksaCollection.FindOne(ctx, bson.M{"_id": jaksaID}).Decode(&jaksa); err != nil {
+	if err := jaksaCol.FindOne(ctx, bson.M{"_id": jaksaID}).Decode(&jaksa); err != nil {
 		c.JSON(404, gin.H{"error": "Jaksa tidak ditemukan"})
 		return
 	}
 
-	updateJaksa := bson.M{}
-	updateUser := bson.M{}
-	emailDiubah := false
-
-	// Update nama
-	if body.Nama != "" {
-		updateJaksa["nama"] = body.Nama
-		updateUser["username"] = body.Nama // opsional, kalau username = nama
-	}
-
-	// Update NIP
-	if body.NIP != "" {
-		updateJaksa["nip"] = body.NIP
-	}
-
-	// Update Email
-	if body.Email != "" && body.Email != jaksa.Email {
-		emailDiubah = true
-		updateJaksa["email"] = body.Email
-		updateUser["email"] = body.Email
-	}
-
-	// Update Bidang
-	if body.BidangID != "" {
-		bidangObjID, err := primitive.ObjectIDFromHex(body.BidangID)
+	// =============================
+	// 🔹 BIDANG (pakai nama bidang)
+	// =============================
+	var bidang models.Bidang
+	if body.BidangNama != "" {
+		err := bidangCol.FindOne(ctx, bson.M{"nama": body.BidangNama}).Decode(&bidang)
 		if err != nil {
-			c.JSON(400, gin.H{"error": "Bidang ID tidak valid"})
+			c.JSON(400, gin.H{"error": "Bidang tidak ditemukan"})
 			return
 		}
-
-		var bidang models.Bidang
-		if err := config.BidangCollection.FindOne(ctx, bson.M{"_id": bidangObjID}).Decode(&bidang); err != nil {
-			c.JSON(404, gin.H{"error": "Bidang tidak ditemukan"})
-			return
-		}
-
-		updateJaksa["bidang_id"] = bidangObjID
-		updateJaksa["bidang_nama"] = bidang.Nama
 	}
 
-	// Kalau tidak ada data diupdate
-	if len(updateJaksa) == 0 {
-		c.JSON(400, gin.H{"error": "Tidak ada data yang diupdate"})
-		return
+	// =============================
+	// 🔹 CEK EMAIL BERUBAH
+	// =============================
+	emailBerubah := body.Email != "" && body.Email != jaksa.Email
+
+	var emailOTP string
+	var emailExpiry int64
+
+	if emailBerubah {
+		emailOTP = generateOTP()
+		emailExpiry = time.Now().Add(10 * time.Minute).Unix()
 	}
 
-	// 🔁 OTP ulang jika email berubah
-	if emailDiubah {
-		otp := generateOTP()
-		expiry := time.Now().Add(10 * time.Minute).Unix()
-
-		updateJaksa["email_verification_otp"] = otp
-		updateJaksa["email_verification_expiry"] = expiry
-		updateJaksa["email_verified"] = false
-
-		updateUser["email_verification_otp"] = otp
-		updateUser["email_verification_expiry"] = expiry
-		updateUser["email_verified"] = false
-
-		// Kirim email
-		go sendVerificationEmail(body.Email, otp)
+	// =============================
+	// 🔹 UPDATE JAKSA
+	// =============================
+	updateJaksa := bson.M{
+		"$set": bson.M{
+			"nama":        body.Nama,
+			"nip":         body.NIP,
+			"email":       body.Email,
+			"bidang_id":   bidang.ID,
+			"bidang_nama": bidang.Nama,
+		},
 	}
 
-	// Update Jaksa
-	_, err = jaksaCollection.UpdateOne(
-		ctx,
-		bson.M{"_id": jaksaID},
-		bson.M{"$set": updateJaksa},
-	)
+	if emailBerubah {
+		updateJaksa["$set"].(bson.M)["email_verification_otp"] = emailOTP
+		updateJaksa["$set"].(bson.M)["email_verification_expiry"] = emailExpiry
+		updateJaksa["$set"].(bson.M)["is_email_verified"] = false
+	}
+
+	_, err = jaksaCol.UpdateOne(ctx, bson.M{"_id": jaksaID}, updateJaksa)
 	if err != nil {
-		c.JSON(500, gin.H{"error": "Gagal update data Jaksa"})
+		c.JSON(500, gin.H{"error": "Gagal update Jaksa"})
 		return
 	}
 
-	// Update User (berdasarkan email lama / jaksa_id)
-	_, err = userCollection.UpdateOne(
-		ctx,
-		bson.M{"email": jaksa.Email},
-		bson.M{"$set": updateUser},
-	)
+	// =============================
+	// 🔹 UPDATE USER (SYNC)
+	// =============================
+	updateUser := bson.M{
+		"$set": bson.M{
+			"username": jaksa.Username,
+			"email":    body.Email,
+		},
+	}
+
+	if emailBerubah {
+		updateUser["$set"].(bson.M)["email_verification_otp"] = emailOTP
+		updateUser["$set"].(bson.M)["email_verification_expiry"] = emailExpiry
+		updateUser["$set"].(bson.M)["is_email_verified"] = false
+	}
+
+	_, err = userCol.UpdateOne(ctx, bson.M{"_id": jaksaID}, updateUser)
 	if err != nil {
-		c.JSON(500, gin.H{"error": "Gagal update data User"})
+		c.JSON(500, gin.H{"error": "Jaksa updated, tapi User gagal update"})
 		return
+	}
+
+	// =============================
+	// 🔹 KIRIM EMAIL VERIFIKASI
+	// =============================
+	if emailBerubah {
+		go sendVerificationEmail(body.Email, emailOTP)
 	}
 
 	c.JSON(200, gin.H{
-		"message":                     "Data Jaksa & User berhasil diperbarui",
-		"email_verification_required": emailDiubah,
+		"message": "Data Jaksa & User berhasil diperbarui",
 	})
 }
 

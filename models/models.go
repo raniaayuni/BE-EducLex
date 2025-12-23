@@ -115,6 +115,7 @@ type UpdateJaksaRequest struct {
 	NIP      string `json:"nip"`
 	Email    string `json:"email"`
 	BidangID string `json:"bidang_id"`
+	BidangNama string `json:"bidang_nama"`
 }
 
 type Category struct {
